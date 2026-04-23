@@ -1,9 +1,9 @@
 server:
-  port: 8080
+  port: 8888
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/medical_scheduling
+    url: jdbc:postgresql://localhost:4545/medical_scheduling
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver

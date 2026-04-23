@@ -1,7 +1,6 @@
 spring:
   datasource:
-    url: jdbc:tc:postgresql:16:///medical_scheduling_test
-    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    url: jdbc:postgresql://localhost/medical_scheduling_test
   jpa:
     hibernate:
       ddl-auto: validate

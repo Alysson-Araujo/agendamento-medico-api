@@ -49,7 +49,7 @@ public class AppointmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         var patient = patientRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found"));
-        var doctor = doctorRepository.findById(request.doctorId())
+        var doctor = doctorRepository.findByIdForUpdate(request.doctorId())
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found"));
 
         appointmentValidator.validateScheduling(doctor, patient, request.dateTime());
@@ -115,6 +115,12 @@ public class AppointmentService {
                     .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found"));
             if (!appointment.getPatient().getId().equals(patient.getId())) {
                 throw new BusinessException("Patient can only cancel their own appointments");
+            }
+        } else if (user.getRole() == com.medicalscheduling.domain.User.Role.DOCTOR) {
+            var doctor = doctorRepository.findByUserId(user.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Doctor profile not found"));
+            if (!appointment.getDoctor().getId().equals(doctor.getId())) {
+                throw new BusinessException("Doctor can only cancel their own appointments");
             }
         }
 

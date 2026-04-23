@@ -2,11 +2,13 @@ package com.medicalscheduling.service;
 
 import com.medicalscheduling.domain.Patient;
 import com.medicalscheduling.domain.User;
+import com.medicalscheduling.domain.AppointmentStatus;
 import com.medicalscheduling.dto.request.CreatePatientRequest;
 import com.medicalscheduling.dto.request.UpdatePatientRequest;
 import com.medicalscheduling.dto.response.PatientResponse;
 import com.medicalscheduling.exception.BusinessException;
 import com.medicalscheduling.exception.ResourceNotFoundException;
+import com.medicalscheduling.repository.AppointmentRepository;
 import com.medicalscheduling.repository.PatientRepository;
 import com.medicalscheduling.repository.UserRepository;
 import org.springframework.data.domain.Page;
@@ -15,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -22,12 +25,14 @@ public class PatientService {
 
     private final PatientRepository patientRepository;
     private final UserRepository userRepository;
+    private final AppointmentRepository appointmentRepository;
     private final PasswordEncoder passwordEncoder;
 
     public PatientService(PatientRepository patientRepository, UserRepository userRepository,
-                          PasswordEncoder passwordEncoder) {
+                          AppointmentRepository appointmentRepository, PasswordEncoder passwordEncoder) {
         this.patientRepository = patientRepository;
         this.userRepository = userRepository;
+        this.appointmentRepository = appointmentRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -96,5 +101,15 @@ public class PatientService {
         patient.getUser().setActive(false);
         patientRepository.save(patient);
         userRepository.save(patient.getUser());
+
+        var futureAppointments = appointmentRepository.findByPatientIdAndStatusAndDateTimeAfter(
+                patient.getId(), AppointmentStatus.SCHEDULED, LocalDateTime.now());
+        futureAppointments.forEach(a -> {
+            a.setStatus(AppointmentStatus.CANCELLED);
+            a.setCancelReason("Patient deactivated");
+        });
+        if (!futureAppointments.isEmpty()) {
+            appointmentRepository.saveAll(futureAppointments);
+        }
     }
 }

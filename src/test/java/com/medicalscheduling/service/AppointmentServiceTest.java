@@ -101,7 +101,7 @@ class AppointmentServiceTest {
 
         when(userRepository.findByEmail(patientUser.getEmail())).thenReturn(Optional.of(patientUser));
         when(patientRepository.findByUserId(patientUser.getId())).thenReturn(Optional.of(patient));
-        when(doctorRepository.findById(doctor.getId())).thenReturn(Optional.of(doctor));
+        when(doctorRepository.findByIdForUpdate(doctor.getId())).thenReturn(Optional.of(doctor));
         doNothing().when(appointmentValidator).validateScheduling(doctor, patient, dateTime);
 
         var appointment = new Appointment(doctor, patient, dateTime, "Checkup");
@@ -122,7 +122,7 @@ class AppointmentServiceTest {
 
         when(userRepository.findByEmail(patientUser.getEmail())).thenReturn(Optional.of(patientUser));
         when(patientRepository.findByUserId(patientUser.getId())).thenReturn(Optional.of(patient));
-        when(doctorRepository.findById(any())).thenReturn(Optional.empty());
+        when(doctorRepository.findByIdForUpdate(any())).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> appointmentService.create(request));
     }
@@ -134,7 +134,7 @@ class AppointmentServiceTest {
 
         when(userRepository.findByEmail(patientUser.getEmail())).thenReturn(Optional.of(patientUser));
         when(patientRepository.findByUserId(patientUser.getId())).thenReturn(Optional.of(patient));
-        when(doctorRepository.findById(doctor.getId())).thenReturn(Optional.of(doctor));
+        when(doctorRepository.findByIdForUpdate(doctor.getId())).thenReturn(Optional.of(doctor));
         doThrow(new BusinessException("Cannot schedule appointment with inactive doctor"))
                 .when(appointmentValidator).validateScheduling(doctor, patient, dateTime);
 
@@ -148,7 +148,7 @@ class AppointmentServiceTest {
 
         when(userRepository.findByEmail(patientUser.getEmail())).thenReturn(Optional.of(patientUser));
         when(patientRepository.findByUserId(patientUser.getId())).thenReturn(Optional.of(patient));
-        when(doctorRepository.findById(doctor.getId())).thenReturn(Optional.of(doctor));
+        when(doctorRepository.findByIdForUpdate(doctor.getId())).thenReturn(Optional.of(doctor));
         doThrow(new BusinessException("Cannot schedule appointment with inactive patient"))
                 .when(appointmentValidator).validateScheduling(doctor, patient, dateTime);
 
@@ -162,7 +162,7 @@ class AppointmentServiceTest {
 
         when(userRepository.findByEmail(patientUser.getEmail())).thenReturn(Optional.of(patientUser));
         when(patientRepository.findByUserId(patientUser.getId())).thenReturn(Optional.of(patient));
-        when(doctorRepository.findById(doctor.getId())).thenReturn(Optional.of(doctor));
+        when(doctorRepository.findByIdForUpdate(doctor.getId())).thenReturn(Optional.of(doctor));
         doThrow(new BusinessException("Doctor already has an appointment at this time"))
                 .when(appointmentValidator).validateScheduling(doctor, patient, dateTime);
 
@@ -176,7 +176,7 @@ class AppointmentServiceTest {
 
         when(userRepository.findByEmail(patientUser.getEmail())).thenReturn(Optional.of(patientUser));
         when(patientRepository.findByUserId(patientUser.getId())).thenReturn(Optional.of(patient));
-        when(doctorRepository.findById(doctor.getId())).thenReturn(Optional.of(doctor));
+        when(doctorRepository.findByIdForUpdate(doctor.getId())).thenReturn(Optional.of(doctor));
         doThrow(new BusinessException("Patient already has an appointment on this day"))
                 .when(appointmentValidator).validateScheduling(doctor, patient, dateTime);
 
@@ -190,8 +190,8 @@ class AppointmentServiceTest {
 
         when(userRepository.findByEmail(patientUser.getEmail())).thenReturn(Optional.of(patientUser));
         when(patientRepository.findByUserId(patientUser.getId())).thenReturn(Optional.of(patient));
-        when(doctorRepository.findById(doctor.getId())).thenReturn(Optional.of(doctor));
-        doThrow(new BusinessException("Appointments are only available between 07:00 and 19:00"))
+        when(doctorRepository.findByIdForUpdate(doctor.getId())).thenReturn(Optional.of(doctor));
+        doThrow(new BusinessException("Appointments are only available between 07:00 and 18:00"))
                 .when(appointmentValidator).validateScheduling(doctor, patient, dateTime);
 
         assertThrows(BusinessException.class, () -> appointmentService.create(request));
@@ -204,7 +204,7 @@ class AppointmentServiceTest {
 
         when(userRepository.findByEmail(patientUser.getEmail())).thenReturn(Optional.of(patientUser));
         when(patientRepository.findByUserId(patientUser.getId())).thenReturn(Optional.of(patient));
-        when(doctorRepository.findById(doctor.getId())).thenReturn(Optional.of(doctor));
+        when(doctorRepository.findByIdForUpdate(doctor.getId())).thenReturn(Optional.of(doctor));
         doThrow(new BusinessException("Appointment must be scheduled at least 30 minutes in advance"))
                 .when(appointmentValidator).validateScheduling(doctor, patient, dateTime);
 
@@ -323,6 +323,33 @@ class AppointmentServiceTest {
         when(appointmentRepository.findById(appointment.getId())).thenReturn(Optional.of(appointment));
         when(userRepository.findByEmail(patientUser.getEmail())).thenReturn(Optional.of(patientUser));
         when(patientRepository.findByUserId(patientUser.getId())).thenReturn(Optional.of(patient));
+
+        var request = new CancelAppointmentRequest("Reason");
+
+        assertThrows(BusinessException.class, () -> appointmentService.cancel(appointment.getId(), request));
+    }
+
+    @Test
+    void shouldThrowWhenDoctorCancelsOthersAppointment() {
+        var otherDoctorUser = new User("Other Dr", "other.dr@email.com", "encoded", User.Role.DOCTOR);
+        otherDoctorUser.setId(UUID.randomUUID());
+        var otherDoctor = new Doctor(otherDoctorUser, "CRM99999", Specialty.NEUROLOGY, "11666666666");
+        otherDoctor.setId(UUID.randomUUID());
+
+        // appointment belongs to `doctor` (from setUp), but the authenticated user is otherDoctor
+        var appointment = new Appointment(doctor, patient, nextValidDateTime().plusDays(5), "Checkup");
+        appointment.setId(UUID.randomUUID());
+        appointment.setStatus(AppointmentStatus.SCHEDULED);
+
+        var auth = new UsernamePasswordAuthenticationToken(
+                otherDoctorUser.getEmail(), null,
+                List.of(new SimpleGrantedAuthority("ROLE_DOCTOR"))
+        );
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        when(appointmentRepository.findById(appointment.getId())).thenReturn(Optional.of(appointment));
+        when(userRepository.findByEmail(otherDoctorUser.getEmail())).thenReturn(Optional.of(otherDoctorUser));
+        when(doctorRepository.findByUserId(otherDoctorUser.getId())).thenReturn(Optional.of(otherDoctor));
 
         var request = new CancelAppointmentRequest("Reason");
 

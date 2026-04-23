@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -30,4 +31,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
     boolean existsByPatientIdAndDateAndStatusNot(
             @Param("patientId") UUID patientId,
             @Param("dateTime") LocalDateTime dateTime);
+
+    List<Appointment> findByDoctorIdAndStatusAndDateTimeAfter(UUID doctorId, AppointmentStatus status, LocalDateTime dateTime);
+
+    List<Appointment> findByPatientIdAndStatusAndDateTimeAfter(UUID patientId, AppointmentStatus status, LocalDateTime dateTime);
 }

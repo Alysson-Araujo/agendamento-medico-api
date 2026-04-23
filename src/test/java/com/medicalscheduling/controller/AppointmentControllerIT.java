@@ -117,11 +117,13 @@ class AppointmentControllerIT {
     }
 
     private UUID createPatientViaAdmin(String suffix) throws Exception {
+        // CPF must be at most 14 chars (format XXX.XXX.XXX-XX); derive 2-digit suffix from suffix hash
+        String cpfSuffix = String.format("%02d", Math.abs(suffix.hashCode()) % 100);
         var request = new CreatePatientRequest(
                 "Patient " + suffix,
                 "patient_admin_" + suffix + "@test.com",
                 "password123",
-                "123.456.789-" + suffix,
+                "123.456.789-" + cpfSuffix,
                 "11999999999",
                 LocalDate.of(1990, 1, 1)
         );

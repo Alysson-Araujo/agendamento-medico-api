@@ -3,6 +3,7 @@ package com.medicalscheduling.service;
 import com.medicalscheduling.domain.Doctor;
 import com.medicalscheduling.domain.User;
 import com.medicalscheduling.domain.Specialty;
+import com.medicalscheduling.domain.AppointmentStatus;
 import com.medicalscheduling.dto.request.CreateDoctorRequest;
 import com.medicalscheduling.dto.request.UpdateDoctorRequest;
 import com.medicalscheduling.dto.response.AppointmentResponse;
@@ -18,6 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -114,5 +116,15 @@ public class DoctorService {
         doctor.getUser().setActive(false);
         doctorRepository.save(doctor);
         userRepository.save(doctor.getUser());
+
+        var futureAppointments = appointmentRepository.findByDoctorIdAndStatusAndDateTimeAfter(
+                doctor.getId(), AppointmentStatus.SCHEDULED, LocalDateTime.now());
+        futureAppointments.forEach(a -> {
+            a.setStatus(AppointmentStatus.CANCELLED);
+            a.setCancelReason("Doctor deactivated");
+        });
+        if (!futureAppointments.isEmpty()) {
+            appointmentRepository.saveAll(futureAppointments);
+        }
     }
 }

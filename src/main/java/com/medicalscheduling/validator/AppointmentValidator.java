@@ -70,8 +70,8 @@ public class AppointmentValidator {
         if (day == DayOfWeek.SUNDAY) {
             throw new BusinessException("Appointments are not available on Sundays");
         }
-        if (hour < 7 || hour >= 19) {
-            throw new BusinessException("Appointments are only available between 07:00 and 19:00");
+        if (hour < 7 || hour >= 18) {
+            throw new BusinessException("Appointments are only available between 07:00 and 18:00");
         }
     }
 
